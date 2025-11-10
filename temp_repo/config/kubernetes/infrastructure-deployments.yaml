@@ -1,0 +1,571 @@
+# PostgreSQL Primary Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-primary
+  namespace: silhouette-production
+  labels:
+    app: postgres
+    tier: primary
+    version: "14.0"
+  annotations:
+    description: "PostgreSQL Primary Database"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      tier: primary
+  template:
+    metadata:
+      labels:
+        app: postgres
+        tier: primary
+    spec:
+      serviceAccountName: postgres
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+      - name: postgres
+        image: postgres:14.5-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+          name: postgresql
+          protocol: TCP
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-postgres-secret
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-postgres-secret
+              key: POSTGRES_DB
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_INITDB_ARGS
+          value: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+        - name: POSTGRES_HOST_AUTH_METHOD
+          value: "scram-sha-256"
+        - name: POSTGRES_INITDB_WALDIR
+          value: "/var/lib/postgresql/data/pg_wal"
+        - name: POSTGRES_SHUTDOWN
+          value: "immediate"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            - localhost
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -h
+            localhost
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: postgresql-storage
+          mountPath: /var/lib/postgresql/data
+        - name: postgresql-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgresql-pghba
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+      volumes:
+      - name: postgresql-storage
+        persistentVolumeClaim:
+          claimName: postgresql-pvc
+      - name: postgresql-config
+        configMap:
+          name: postgresql-config
+      - name: postgresql-pghba
+        configMap:
+          name: postgresql-pghba
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        workload-type: "database"
+      tolerations:
+      - key: "database-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary
+  namespace: silhouette-production
+  labels:
+    app: postgres
+    tier: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgresql
+  selector:
+    app: postgres
+    tier: primary
+---
+# Redis Primary Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-primary
+  namespace: silhouette-production
+  labels:
+    app: redis
+    tier: primary
+    version: "7.0"
+  annotations:
+    description: "Redis Primary Cache"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      tier: primary
+  template:
+    metadata:
+      labels:
+        app: redis
+        tier: primary
+    spec:
+      serviceAccountName: redis
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+      - name: redis
+        image: redis:7.0-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+        - containerPort: 9121
+          name: metrics
+          protocol: TCP
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-redis-secret
+              key: REDIS_PASSWORD
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_CONFIG
+          value: "/usr/local/etc/redis/redis.conf"
+        command:
+        - redis-server
+        - /usr/local/etc/redis/redis.conf
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - -a
+            - $(REDIS_PASSWORD)
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: redis-storage
+          mountPath: /data
+        - name: redis-config
+          mountPath: /usr/local/etc/redis/redis.conf
+          subPath: redis.conf
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim:
+          claimName: redis-pvc
+      - name: redis-config
+        configMap:
+          name: redis-config
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        workload-type: "cache"
+      tolerations:
+      - key: "cache-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-primary
+  namespace: silhouette-production
+  labels:
+    app: redis
+    tier: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  - port: 9121
+    targetPort: 9121
+    protocol: TCP
+    name: metrics
+  selector:
+    app: redis
+    tier: primary
+---
+# RabbitMQ Primary Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-primary
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+    tier: primary
+    version: "3.10"
+  annotations:
+    description: "RabbitMQ Message Queue"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+      tier: primary
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+        tier: primary
+    spec:
+      serviceAccountName: rabbitmq
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.10-management-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5672
+          name: amqp
+          protocol: TCP
+        - containerPort: 15672
+          name: management
+          protocol: TCP
+        - containerPort: 9419
+          name: metrics
+          protocol: TCP
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-rabbitmq-secret
+              key: RABBITMQ_USER
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-rabbitmq-secret
+              key: RABBITMQ_PASSWORD
+        - name: RABBITMQ_NODE_TYPE
+          value: "disc"
+        - name: RABBITMQ_NODENAME
+          value: "rabbit@localhost"
+        - name: RABBITMQ_MNESIA_BASE
+          value: "/var/lib/rabbitmq/mnesia"
+        - name: RABBITMQ_LOG_BASE
+          value: "/var/log/rabbitmq"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - ping
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: rabbitmq-storage
+          mountPath: /var/lib/rabbitmq
+        - name: rabbitmq-logs
+          mountPath: /var/log/rabbitmq
+      volumes:
+      - name: rabbitmq-storage
+        persistentVolumeClaim:
+          claimName: rabbitmq-pvc
+      - name: rabbitmq-logs
+        persistentVolumeClaim:
+          claimName: rabbitmq-logs-pvc
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        workload-type: "messaging"
+      tolerations:
+      - key: "messaging-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+# RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-primary
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+    tier: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5672
+    targetPort: 5672
+    protocol: TCP
+    name: amqp
+  - port: 15672
+    targetPort: 15672
+    protocol: TCP
+    name: management
+  - port: 9419
+    targetPort: 9419
+    protocol: TCP
+    name: metrics
+  selector:
+    app: rabbitmq
+    tier: primary
+---
+# Neo4j Primary Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neo4j-primary
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    tier: primary
+    version: "5.0"
+  annotations:
+    description: "Neo4j Graph Database"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: neo4j
+      tier: primary
+  template:
+    metadata:
+      labels:
+        app: neo4j
+        tier: primary
+    spec:
+      serviceAccountName: neo4j
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+      - name: neo4j
+        image: neo4j:5.0-community
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 7474
+          name: http
+          protocol: TCP
+        - containerPort: 7687
+          name: bolt
+          protocol: TCP
+        - containerPort: 2004
+          name: metrics
+          protocol: TCP
+        env:
+        - name: NEO4J_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: silhouette-neo4j-secret
+              key: NEO4J_USER
+        - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
+          value: "yes"
+        - name: NEO4J_dbms_connector_http_advertised__address
+          value: "7474"
+        - name: NEO4J_dbms_connector_bolt_advertised__address
+          value: "7687"
+        - name: NEO4J_dbms_memory_pagecache_size
+          value: "1G"
+        - name: NEO4J_dbms_memory_heap_initial__size
+          value: "512m"
+        - name: NEO4J_dbms_memory_heap_max__size
+          value: "1G"
+        - name: NEO4J_server_memory_pagecache_size
+          value: "1G"
+        - name: NEO4J_server_memory_heap_initial__size
+          value: "512m"
+        - name: NEO4J_server_memory_heap_max__size
+          value: "1G"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 7474
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 7474
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: neo4j-storage
+          mountPath: /data
+        - name: neo4j-logs
+          mountPath: /logs
+        - name: neo4j-plugins
+          mountPath: /plugins
+      volumes:
+      - name: neo4j-storage
+        persistentVolumeClaim:
+          claimName: neo4j-pvc
+      - name: neo4j-logs
+        persistentVolumeClaim:
+          claimName: neo4j-logs-pvc
+      - name: neo4j-plugins
+        persistentVolumeClaim:
+          claimName: neo4j-plugins-pvc
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        workload-type: "database"
+      tolerations:
+      - key: "database-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+# Neo4j Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-primary
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    tier: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 7474
+    targetPort: 7474
+    protocol: TCP
+    name: http
+  - port: 7687
+    targetPort: 7687
+    protocol: TCP
+    name: bolt
+  - port: 2004
+    targetPort: 2004
+    protocol: TCP
+    name: metrics
+  selector:
+    app: neo4j
+    tier: primary

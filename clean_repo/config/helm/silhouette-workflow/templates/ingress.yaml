@@ -1,0 +1,173 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullname := include "silhouette-workflow.fullname" . }}
+{{- $labels := include "silhouette-workflow.labels" . }}
+{{- $domain := .Values.global.domain }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- $labels | nindent 4 }}
+  annotations:
+    {{- if .Values.ingress.className }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.className | quote }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.global.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.global.tls.issuer | quote }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/rate-limit: {{ .Values.global.rateLimit.requests | quote }}
+    nginx.ingress.kubernetes.io/rate-limit-window: {{ .Values.global.rateLimit.window | quote }}
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: {{ printf "https://app.%s" $domain | quote }}
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Content-Length,Content-Range"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "SAMEORIGIN" always;
+      add_header X-XSS-Protection "1; mode=block" always;
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "no-referrer-when-downgrade" always;
+      add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval';" always;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    nginx.ingress.kubernetes.io/enable-gzip: "true"
+    nginx.ingress.kubernetes.io/gzip-level: "6"
+    nginx.ingress.kubernetes.io/gzip-types: "text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-cookie-name: "silhouette_session"
+    nginx.ingress.kubernetes.io/affinity-cookie-expires: "86400"
+    nginx.ingress.kubernetes.io/affinity-cookie-max-age: "86400"
+spec:
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    {{- range .Values.ingress.hosts }}
+    - {{ .host | quote }}
+    {{- end }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+  {{- range .Values.ingress.hosts }}
+  - host: {{ .host | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: {{ .service.name }}
+            port:
+              number: {{ .service.port }}
+      {{- end }}
+  {{- end }}
+---
+{{- if .Values.ingress.metrics.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-metrics
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: metrics
+  annotations:
+    kubernetes.io/ingress.class: "nginx-internal"
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ .Values.ingress.metrics.whitelist | quote }}
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: {{ printf "%s-metrics-auth" $fullname | quote }}
+    nginx.ingress.kubernetes.io/auth-realm: "Silhouette Metrics - Authentication Required"
+    nginx.ingress.kubernetes.io/enable-cors: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - metrics.{{ $domain | quote }}
+    secretName: {{ printf "%s-metrics-tls" $fullname | quote }}
+  {{- end }}
+  rules:
+  - host: metrics.{{ $domain | quote }}
+    http:
+      paths:
+      - path: /backend
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $fullname }}-backend-metrics
+            port:
+              number: 9090
+      - path: /frontend
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $fullname }}-frontend-metrics
+            port:
+              number: 9091
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $fullname }}-prometheus
+            port:
+              number: 80
+{{- end }}
+{{- if .Values.ingress.dbManagement.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}-db-management
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: db-management
+  annotations:
+    kubernetes.io/ingress.class: "nginx-internal"
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ .Values.ingress.dbManagement.whitelist | quote }}
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: {{ printf "%s-db-admin-auth" $fullname | quote }}
+    nginx.ingress.kubernetes.io/auth-realm: "Database Management - Admin Access Only"
+    nginx.ingress.kubernetes.io/enable-ssl: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  rules:
+  - host: postgres-admin.{{ $domain | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.postgresql.fullname }}-admin
+            port:
+              number: 80
+  - host: rabbitmq-admin.{{ $domain | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.rabbitmq.fullname }}-admin
+            port:
+              number: 80
+  - host: neo4j-admin.{{ $domain | quote }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.neo4j.fullname }}
+            port:
+              number: 7474
+{{- end }}
+{{- end }}

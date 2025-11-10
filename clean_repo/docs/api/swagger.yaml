@@ -1,0 +1,2633 @@
+openapi: 3.0.3
+info:
+  title: Silhouette Workflow Platform API
+  description: |
+    API REST completa para la plataforma Silhouette Workflow - sistema de automatización empresarial con capacidades avanzadas de IA.
+    
+    ## Características principales:
+    - 🔐 Autenticación JWT con multi-tenancy
+    - 🤖 IA/ML integrado (entrenamiento, optimización, auto-scaling)
+    - 🔄 Gestión de workflows con canvas visual
+    - 🔑 Vault de credenciales seguro
+    - 📊 Analytics y métricas avanzadas
+    - 🏢 Multi-organizacional
+    
+    ## Autenticación
+    Todas las rutas protegidas requieren un token JWT en el header:
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    ## Formato de respuesta
+    Todas las respuestas siguen el formato:
+    ```json
+    {
+      "success": true|false,
+      "message": "string",
+      "data": "object|array",
+      "error": "ERROR_CODE"
+    }
+    ```
+    
+  version: 1.0.0
+  contact:
+    name: Silhouette Workflow Platform
+    email: api@silhouette-platform.com
+    url: https://silhouette-platform.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.silhouette-platform.com
+    description: Production server
+  - url: https://staging-api.silhouette-platform.com
+    description: Staging server
+  - url: http://localhost:3000
+    description: Development server
+
+tags:
+  - name: auth
+    description: Autenticación y gestión de usuarios
+  - name: workflows
+    description: Gestión de workflows y automatización
+  - name: ai-ml
+    description: Inteligencia artificial y machine learning
+  - name: credentials
+    description: Gestión segura de credenciales
+  - name: analytics
+    description: Analytics y métricas
+  - name: system
+    description: Información del sistema
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Authentication schemas
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID único del usuario
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+        name:
+          type: string
+          description: Nombre completo
+        orgId:
+          type: string
+          format: uuid
+          description: ID de la organización
+        role:
+          type: string
+          enum: [admin, developer, analyst, viewer]
+          description: Rol del usuario
+        isActive:
+          type: boolean
+          description: Estado del usuario
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    RegisterRequest:
+      allOf:
+        - $ref: '#/components/schemas/AuthRequest'
+        - type: object
+          required:
+            - name
+            - orgName
+          properties:
+            name:
+              type: string
+              minLength: 2
+            orgName:
+              type: string
+              minLength: 2
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Tiempo de expiración en segundos
+
+    # Workflow schemas
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused, archived]
+        canvasData:
+          type: object
+          description: Datos del canvas visual (JSON)
+        nodes:
+          type: array
+          items:
+            type: object
+        edges:
+          type: array
+          items:
+            type: object
+        ownerId:
+          type: string
+          format: uuid
+        orgId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WorkflowStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        paused:
+          type: integer
+        draft:
+          type: integer
+        archived:
+          type: integer
+        executions:
+          type: integer
+        successRate:
+          type: number
+          format: float
+
+    # AI/ML schemas
+    MLModel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        modelType:
+          type: string
+          enum: [workflow-classifier, performance-predictor, optimization-recommender, resource-estimator]
+        name:
+          type: string
+        version:
+          type: string
+        accuracy:
+          type: number
+          format: float
+        isActive:
+          type: boolean
+        trainingData:
+          type: object
+        hyperparameters:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        lastUsed:
+          type: string
+          format: date-time
+
+    TrainingRequest:
+      type: object
+      required:
+        - modelType
+        - trainingData
+      properties:
+        modelType:
+          type: string
+          enum: [workflow-classifier, performance-predictor, optimization-recommender, resource-estimator]
+        name:
+          type: string
+        trainingData:
+          type: object
+          description: Datos de entrenamiento
+        hyperparameters:
+          type: object
+          description: Hiperparámetros del modelo
+        validationSplit:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.2
+
+    OptimizationRequest:
+      type: object
+      required:
+        - workflowId
+        - workflowData
+      properties:
+        workflowId:
+          type: string
+          format: uuid
+        workflowData:
+          type: object
+          description: Datos del workflow a optimizar
+        optimizationType:
+          type: string
+          enum: [performance, resource, cost, reliability, composite]
+        algorithm:
+          type: string
+          enum: [genetic-algorithm, neural-optimization, particle-swarm, simulated-annealing, mixed]
+        maxIterations:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+
+    ScalingPolicy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        targetMetrics:
+          type: array
+          items:
+            type: string
+        minReplicas:
+          type: integer
+          minimum: 1
+        maxReplicas:
+          type: integer
+          minimum: 1
+        scaleUpThreshold:
+          type: number
+          format: float
+        scaleDownThreshold:
+          type: number
+          format: float
+        enabled:
+          type: boolean
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [workflow-optimization, resource-allocation, security-enhancement, cost-reduction, performance-tuning, team-collaboration, integration-suggestions, template-recommendations, monitoring-setup, compliance-automation]
+        title:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        confidence:
+          type: number
+          format: float
+        impact:
+          type: object
+        actionable:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # Credential schemas
+    Credential:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [api-key, oauth, password, certificate, token]
+        serviceName:
+          type: string
+        encryptedData:
+          type: object
+          description: Datos encriptados
+        status:
+          type: string
+          enum: [active, inactive, expired, revoked]
+        expiresAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+        permissions:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsed:
+          type: string
+          format: date-time
+
+    # Error schema
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        error:
+          type: string
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    # Pagination schema
+    PaginationResponse:
+      type: object
+      properties:
+        data:
+          type: array
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            pages:
+              type: integer
+            hasNext:
+              type: boolean
+            hasPrev:
+              type: boolean
+
+paths:
+  # ================== AUTH ROUTES ==================
+  /api/auth/register:
+    post:
+      tags:
+        - auth
+      summary: Registro de usuario
+      description: Registra un nuevo usuario en la plataforma
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: usuario@empresa.com
+              password: Password123!
+              name: Juan Pérez
+              orgName: Mi Empresa S.L.
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Usuario registrado exitosamente
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: El email ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/login:
+    post:
+      tags:
+        - auth
+      summary: Inicio de sesión
+      description: Autentica a un usuario y retorna tokens JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            example:
+              email: usuario@empresa.com
+              password: Password123!
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Login exitoso
+        '400':
+          description: Credenciales requeridas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - auth
+      summary: Refrescar token
+      description: Renueva el token de acceso usando el refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refrescado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Refresh token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Cerrar sesión
+      description: Invalida el token actual y cierra la sesión
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Logout exitoso
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/change-password:
+    put:
+      tags:
+        - auth
+      summary: Cambiar contraseña
+      description: Cambia la contraseña del usuario actual
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currentPassword
+                - newPassword
+              properties:
+                currentPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '200':
+          description: Contraseña cambiada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Contraseña cambiada exitosamente
+        '400':
+          description: Contraseñas requeridas o inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/me:
+    get:
+      tags:
+        - auth
+      summary: Obtener perfil
+      description: Retorna la información del usuario actual
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Usuario no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/profile:
+    put:
+      tags:
+        - auth
+      summary: Actualizar perfil
+      description: Actualiza la información del perfil del usuario
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                settings:
+                  type: object
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Perfil actualizado exitosamente
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/verify:
+    get:
+      tags:
+        - auth
+      summary: Verificar token
+      description: Verifica la validez del token JWT
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Token válido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Token válido
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      timestamp:
+                        type: string
+                        format: date-time
+        '401':
+          description: Token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/health:
+    get:
+      tags:
+        - auth
+      summary: Health check de autenticación
+      description: Verifica el estado del servicio de autenticación
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  service:
+                    example: auth
+                  status:
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    example: 1.0.0
+
+  # ================== WORKFLOW ROUTES ==================
+  /api/workflows:
+    get:
+      tags:
+        - workflows
+      summary: Listar workflows
+      description: Obtiene la lista de workflows con filtros y paginación
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [draft, active, paused, archived]
+        - name: name
+          in: query
+          description: Filtrar por nombre
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: Número de página
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Elementos por página
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Lista de workflows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginationResponse'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - workflows
+      summary: Crear workflow
+      description: Crea un nuevo workflow
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - canvasData
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                canvasData:
+                  type: object
+                  description: Datos del canvas visual
+                nodes:
+                  type: array
+                  items:
+                    type: object
+                edges:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '201':
+          description: Workflow creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Workflow'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Workflow creado exitosamente
+        '400':
+          description: Datos requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/workflows/{id}:
+    get:
+      tags:
+        - workflows
+      summary: Obtener workflow por ID
+      description: Retorna los detalles de un workflow específico
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del workflow
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles del workflow
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Workflow'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Workflow no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - workflows
+      summary: Actualizar workflow
+      description: Actualiza los datos de un workflow
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del workflow
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                canvasData:
+                  type: object
+                nodes:
+                  type: array
+                edges:
+                  type: array
+                status:
+                  type: string
+                  enum: [draft, active, paused, archived]
+      responses:
+        '200':
+          description: Workflow actualizado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Workflow'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Workflow actualizado exitosamente
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Workflow no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - workflows
+      summary: Eliminar workflow
+      description: Elimina un workflow permanentemente
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del workflow
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Workflow eliminado exitosamente
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Workflow no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/workflows/{id}/duplicate:
+    post:
+      tags:
+        - workflows
+      summary: Duplicar workflow
+      description: Crea una copia de un workflow existente
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID del workflow a duplicar
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+      responses:
+        '201':
+          description: Workflow duplicado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Workflow'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Workflow duplicado exitosamente
+        '400':
+          description: Nombre requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Workflow no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/workflows/stats/overview:
+    get:
+      tags:
+        - workflows
+      summary: Estadísticas de workflows
+      description: Obtiene estadísticas generales de workflows
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de workflows
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/WorkflowStats'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/workflows/health:
+    get:
+      tags:
+        - workflows
+      summary: Health check de workflows
+      description: Verifica el estado del servicio de workflows
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  service:
+                    example: workflows
+                  status:
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    example: 1.0.0
+
+  # ================== AI/ML ROUTES ==================
+  /api/ai/ml/train:
+    post:
+      tags:
+        - ai-ml
+      summary: Entrenar modelo ML
+      description: Inicia el entrenamiento de un modelo personalizado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingRequest'
+            example:
+              modelType: workflow-classifier
+              name: Mi modelo personalizado
+              trainingData:
+                features: ["workflow_complexity", "execution_time", "resource_usage"]
+                labels: ["simple", "medium", "complex"]
+                dataset: [...]
+              hyperparameters:
+                learningRate: 0.01
+                epochs: 100
+                batchSize: 32
+      responses:
+        '200':
+          description: Entrenamiento iniciado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  trainingId:
+                    type: string
+                    format: uuid
+                  message:
+                    example: Model training started successfully
+                  estimatedTime:
+                    example: 15-30 minutes depending on data size
+        '400':
+          description: Parámetros requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/ml/training/{trainingId}:
+    get:
+      tags:
+        - ai-ml
+      summary: Estado del entrenamiento
+      description: Obtiene el estado actual de un entrenamiento
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: trainingId
+          in: path
+          required: true
+          description: ID del entrenamiento
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Estado del entrenamiento
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  status:
+                    type: object
+                    properties:
+                      trainingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [pending, training, validating, completed, failed]
+                      progress:
+                        type: number
+                        format: float
+                        example: 0.65
+                      metrics:
+                        type: object
+                      eta:
+                        type: number
+                        example: 1200
+                        description: Segundos estimados restantes
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Entrenamiento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/ml/models:
+    get:
+      tags:
+        - ai-ml
+      summary: Listar modelos
+      description: Obtiene la lista de modelos entrenados con filtros
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: modelType
+          in: query
+          description: Filtrar por tipo de modelo
+          schema:
+            type: string
+            enum: [workflow-classifier, performance-predictor, optimization-recommender, resource-estimator]
+        - name: isActive
+          in: query
+          description: Filtrar por estado activo
+          schema:
+            type: boolean
+        - name: minAccuracy
+          in: query
+          description: Filtrar por precisión mínima
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+      responses:
+        '200':
+          description: Lista de modelos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MLModel'
+                  total:
+                    type: integer
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/ml/models/{modelId}:
+    get:
+      tags:
+        - ai-ml
+      summary: Detalles del modelo
+      description: Obtiene los detalles completos de un modelo
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          description: ID del modelo
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles del modelo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  model:
+                    $ref: '#/components/schemas/MLModel'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Modelo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/ml/models/{modelId}/deploy:
+    post:
+      tags:
+        - ai-ml
+      summary: Desplegar modelo
+      description: Despliega un modelo a producción
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          description: ID del modelo
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+                  enum: [staging, production]
+                  default: production
+      responses:
+        '200':
+          description: Modelo desplegado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Model model-uuid deployed to production successfully
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Modelo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/ml/models/{modelId}:
+    delete:
+      tags:
+        - ai-ml
+      summary: Eliminar modelo
+      description: Elimina un modelo permanentemente
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          description: ID del modelo
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Modelo eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Model model-uuid deleted successfully
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Modelo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/optimize:
+    post:
+      tags:
+        - ai-ml
+      summary: Optimizar workflow
+      description: Optimiza un workflow usando técnicas avanzadas de IA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizationRequest'
+            example:
+              workflowId: workflow-uuid
+              workflowData: {...}
+              optimizationType: performance
+              algorithm: genetic-algorithm
+              maxIterations: 100
+      responses:
+        '200':
+          description: Optimización completada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  optimization:
+                    type: object
+                    properties:
+                      originalScore:
+                        type: number
+                        format: float
+                      optimizedScore:
+                        type: number
+                        format: float
+                      improvement:
+                        type: number
+                        format: float
+                      optimizedWorkflow:
+                        type: object
+                      recommendations:
+                        type: array
+        '400':
+          description: Parámetros requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/optimize/history:
+    get:
+      tags:
+        - ai-ml
+      summary: Historial de optimizaciones
+      description: Obtiene el historial de optimizaciones de un workflow
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: workflowId
+          in: query
+          description: ID del workflow (opcional)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Historial de optimizaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  history:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/optimize/compare:
+    post:
+      tags:
+        - ai-ml
+      summary: Comparar optimizaciones
+      description: Compara dos optimizaciones lado a lado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - optimizationId1
+                - optimizationId2
+              properties:
+                optimizationId1:
+                  type: string
+                  format: uuid
+                optimizationId2:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Comparación de optimizaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  comparison:
+                    type: object
+                    properties:
+                      optimization1:
+                        type: object
+                      optimization2:
+                        type: object
+                      differences:
+                        type: object
+                      recommendation:
+                        type: string
+        '400':
+          description: IDs de optimización requeridos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/auto-scaling/predict:
+    post:
+      tags:
+        - ai-ml
+      summary: Predicción de escalado
+      description: Predice la carga futura y recomienda acciones de escalado
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - policyId
+                - currentMetrics
+              properties:
+                policyId:
+                  type: string
+                  format: uuid
+                currentMetrics:
+                  type: object
+                  properties:
+                    cpuUtilization:
+                      type: number
+                      format: float
+                    memoryUtilization:
+                      type: number
+                      format: float
+                    requestRate:
+                      type: number
+                      format: float
+                    responseTime:
+                      type: number
+                      format: float
+      responses:
+        '200':
+          description: Predicciones de escalado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  predictions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        timestamp:
+                          type: string
+                          format: date-time
+                        predictedLoad:
+                          type: number
+                          format: float
+                        recommendedReplicas:
+                          type: integer
+                        confidence:
+                          type: number
+                          format: float
+                  count:
+                    type: integer
+        '400':
+          description: Parámetros requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/auto-scaling/policies:
+    get:
+      tags:
+        - ai-ml
+      summary: Listar políticas de escalado
+      description: Obtiene todas las políticas de auto-scaling configuradas
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Lista de políticas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScalingPolicy'
+                  total:
+                    type: integer
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - ai-ml
+      summary: Crear política de escalado
+      description: Crea una nueva política de auto-scaling
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ScalingPolicy'
+                - type: object
+                  required:
+                    - name
+                    - targetMetrics
+      responses:
+        '200':
+          description: Política creada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  policy:
+                    $ref: '#/components/schemas/ScalingPolicy'
+        '400':
+          description: Parámetros requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/auto-scaling/actions/{actionId}/execute:
+    post:
+      tags:
+        - ai-ml
+      summary: Ejecutar acción de escalado
+      description: Ejecuta manualmente una acción de escalado
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: actionId
+          in: path
+          required: true
+          description: ID de la acción
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Acción ejecutada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Scaling action action-uuid executed successfully
+        '404':
+          description: Acción no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Error en la ejecución
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: false
+                  error:
+                    example: Scaling action execution failed
+
+  /api/ai/auto-scaling/actions:
+    get:
+      tags:
+        - ai-ml
+      summary: Historial de acciones
+      description: Obtiene el historial de acciones de escalado
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: policyId
+          in: query
+          description: Filtrar por ID de política
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          description: Límite de resultados
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Historial de acciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  actions:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/auto-scaling/toggle:
+    post:
+      tags:
+        - ai-ml
+      summary: Toggle auto-scaling
+      description: Habilita o deshabilita el sistema de auto-scaling
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - enabled
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Auto-scaling configurado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Auto-scaling enabled successfully
+        '400':
+          description: Campo enabled requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/auto-scaling/stats:
+    get:
+      tags:
+        - ai-ml
+      summary: Estadísticas de auto-scaling
+      description: Obtiene estadísticas del sistema de auto-scaling
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de auto-scaling
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  stats:
+                    type: object
+                    properties:
+                      totalPolicies:
+                        type: integer
+                      activePolicies:
+                        type: integer
+                      totalActions:
+                        type: integer
+                      successRate:
+                        type: number
+                        format: float
+                      averageResponseTime:
+                        type: number
+                        format: float
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/recommendations:
+    post:
+      tags:
+        - ai-ml
+      summary: Generar recomendaciones
+      description: Genera recomendaciones inteligentes basadas en IA
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - context
+              properties:
+                context:
+                  type: object
+                  description: Contexto para generar recomendaciones
+                types:
+                  type: array
+                  items:
+                    type: string
+                    enum: [workflow-optimization, resource-allocation, security-enhancement, cost-reduction, performance-tuning, team-collaboration, integration-suggestions, template-recommendations, monitoring-setup, compliance-automation]
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      responses:
+        '200':
+          description: Recomendaciones generadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  recommendations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+                  count:
+                    type: integer
+        '400':
+          description: Contexto requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/recommendations/{recommendationId}/feedback:
+    post:
+      tags:
+        - ai-ml
+      summary: Enviar feedback
+      description: Registra feedback sobre una recomendación
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: recommendationId
+          in: path
+          required: true
+          description: ID de la recomendación
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - feedback
+              properties:
+                feedback:
+                  type: string
+                  enum: [accepted, rejected, implemented, dismissed]
+      responses:
+        '200':
+          description: Feedback registrado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Feedback recorded: accepted
+        '400':
+          description: Feedback inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/recommendations/history:
+    get:
+      tags:
+        - ai-ml
+      summary: Historial de recomendaciones
+      description: Obtiene el historial de recomendaciones del usuario
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Límite de resultados
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Historial de recomendaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  history:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Recommendation'
+                        - type: object
+                          properties:
+                            userFeedback:
+                              type: string
+                              enum: [accepted, rejected, implemented, dismissed]
+                            feedbackDate:
+                              type: string
+                              format: date-time
+                  total:
+                    type: integer
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/recommendations/stats:
+    get:
+      tags:
+        - ai-ml
+      summary: Estadísticas de recomendaciones
+      description: Obtiene estadísticas del sistema de recomendaciones
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de recomendaciones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  stats:
+                    type: object
+                    properties:
+                      totalRecommendations:
+                        type: integer
+                      thisWeek:
+                        type: integer
+                      acceptanceRate:
+                        type: number
+                        format: float
+                      topCategories:
+                        type: array
+                        items:
+                          type: string
+                      averageConfidence:
+                        type: number
+                        format: float
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/ai/health:
+    get:
+      tags:
+        - ai-ml
+      summary: Health check de IA
+      description: Verifica el estado del sistema de IA
+      responses:
+        '200':
+          description: Sistema de IA saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  status:
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  services:
+                    type: object
+                    properties:
+                      mlTraining:
+                        type: string
+                        example: available
+                      optimization:
+                        type: string
+                        example: available
+                      autoScaling:
+                        type: string
+                        example: available
+                      recommendations:
+                        type: string
+                        example: available
+                  models:
+                    type: object
+                    properties:
+                      loaded:
+                        type: integer
+                        example: 4
+                      lastUpdate:
+                        type: string
+                        format: date-time
+
+  /api/ai/dashboard:
+    get:
+      tags:
+        - ai-ml
+      summary: Dashboard de IA
+      description: Obtiene un dashboard completo del estado del sistema de IA
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard de IA
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  dashboard:
+                    type: object
+                    properties:
+                      summary:
+                        type: object
+                      mlModels:
+                        type: object
+                      optimizations:
+                        type: object
+                      autoScaling:
+                        type: object
+                      recommendations:
+                        type: object
+                      systemHealth:
+                        type: object
+
+  /api/ai/capabilities:
+    get:
+      tags:
+        - ai-ml
+      summary: Capacidades de IA
+      description: Lista todas las capacidades de IA disponibles
+      responses:
+        '200':
+          description: Capacidades disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  capabilities:
+                    type: object
+                    properties:
+                      mlTraining:
+                        type: object
+                      optimization:
+                        type: object
+                      autoScaling:
+                        type: object
+                      recommendations:
+                        type: object
+
+  # ================== CREDENTIAL ROUTES ==================
+  /api/credentials:
+    get:
+      tags:
+        - credentials
+      summary: Listar credenciales
+      description: Obtiene la lista de credenciales con filtros
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          description: Filtrar por tipo de credencial
+          schema:
+            type: string
+            enum: [api-key, oauth, password, certificate, token]
+        - name: serviceName
+          in: query
+          description: Filtrar por nombre de servicio
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filtrar por estado
+          schema:
+            type: string
+            enum: [active, inactive, expired, revoked]
+      responses:
+        '200':
+          description: Lista de credenciales
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Credential'
+                        - type: object
+                          properties:
+                            # Campos no sensibles omitidos de la respuesta
+                            encryptedData:
+                              type: object
+                              description: Los datos se devuelven encriptados
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - credentials
+      summary: Crear credencial
+      description: Crea una nueva credencial encriptada
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+                - serviceName
+                - encryptedData
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [api-key, oauth, password, certificate, token]
+                serviceName:
+                  type: string
+                encryptedData:
+                  type: object
+                  description: Datos de la credencial (serán encriptados)
+                metadata:
+                  type: object
+                expiresAt:
+                  type: string
+                  format: date-time
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Credencial creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Credential'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Credencial creada exitosamente
+        '400':
+          description: Parámetros requeridos faltantes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/credentials/{id}:
+    get:
+      tags:
+        - credentials
+      summary: Obtener credencial
+      description: Obtiene los detalles de una credencial
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la credencial
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalles de la credencial
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Credential'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Credencial no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - credentials
+      summary: Actualizar credencial
+      description: Actualiza los datos de una credencial
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la credencial
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                encryptedData:
+                  type: object
+                metadata:
+                  type: object
+                status:
+                  type: string
+                  enum: [active, inactive, expired, revoked]
+                expiresAt:
+                  type: string
+                  format: date-time
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Credencial actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Credential'
+                  - type: object
+                    properties:
+                      success:
+                        example: true
+                      message:
+                        example: Credencial actualizada exitosamente
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Credencial no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - credentials
+      summary: Eliminar credencial
+      description: Elimina una credencial permanentemente
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la credencial
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Credencial eliminada exitosamente
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Credencial no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/credentials/{id}/decrypt:
+    get:
+      tags:
+        - credentials
+      summary: Desencriptar credencial
+      description: Desencripta y retorna los datos de la credencial
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la credencial
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Credencial desencriptada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  message:
+                    example: Credencial desencriptada exitosamente
+                  data:
+                    type: object
+                    description: Datos desencriptados de la credencial
+        '401':
+          description: Token requerido o permisos insuficientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Credencial no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/credentials/{id}/test:
+    post:
+      tags:
+        - credentials
+      summary: Probar credencial
+      description: Prueba la validez de una credencial
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID de la credencial
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Resultado de la prueba
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Credencial válida
+                  data:
+                    type: object
+                    properties:
+                      responseTime:
+                        type: number
+                        format: float
+                      serviceStatus:
+                        type: string
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Credencial no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/credentials/stats/overview:
+    get:
+      tags:
+        - credentials
+      summary: Estadísticas de credenciales
+      description: Obtiene estadísticas generales de credenciales
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas de credenciales
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      active:
+                        type: integer
+                      expired:
+                        type: integer
+                      expiringSoon:
+                        type: integer
+                      byType:
+                        type: object
+                      byService:
+                        type: object
+        '401':
+          description: Token requerido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/credentials/health:
+    get:
+      tags:
+        - credentials
+      summary: Health check de credenciales
+      description: Verifica el estado del servicio de credenciales
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    example: true
+                  service:
+                    example: credentials
+                  status:
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    example: 1.0.0
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []

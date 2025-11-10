@@ -1,0 +1,274 @@
+# Deployment del frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silhouette-frontend
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    version: "5.0.0"
+    component: frontend
+  annotations:
+    description: "Silhouette Workflow Creation Platform - Frontend Application"
+    deployment.kubernetes.io/revision: "1"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: silhouette-frontend
+      version: "5.0.0"
+  template:
+    metadata:
+      labels:
+        app: silhouette-frontend
+        version: "5.0.0"
+        component: frontend
+    spec:
+      serviceAccountName: silhouette-frontend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: silhouette-frontend
+        image: silhouette/frontend:5.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        - containerPort: 9091
+          name: metrics
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3000"
+        - name: NEXT_PUBLIC_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_API_URL
+        - name: NEXT_PUBLIC_WS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_WS_URL
+        - name: NEXT_PUBLIC_AUTH_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_AUTH_DOMAIN
+        - name: NEXT_PUBLIC_ENABLE_AI
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_ENABLE_AI
+        - name: NEXT_PUBLIC_ENABLE_COLLABORATION
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_ENABLE_COLLABORATION
+        - name: NEXT_PUBLIC_GA_TRACKING_ID
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_GA_TRACKING_ID
+        - name: SENTRY_DSN
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_SENTRY_DSN
+        - name: SENTRY_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_SENTRY_ENVIRONMENT
+        - name: SENTRY_RELEASE
+          valueFrom:
+            configMapKeyRef:
+              name: silhouette-frontend-config
+              key: NEXT_PUBLIC_SENTRY_RELEASE
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /_next/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_next/ready
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /_next/health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: .next-volume
+          mountPath: /app/.next
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+      - name: .next-volume
+        persistentVolumeClaim:
+          claimName: silhouette-frontend-pvc
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        workload-type: "frontend"
+      tolerations:
+      - key: "frontend-workload"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+---
+# Service para el frontend
+apiVersion: v1
+kind: Service
+metadata:
+  name: silhouette-frontend
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    version: "5.0.0"
+  annotations:
+    description: "Silhouette Frontend Service"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-connection-draining-timeout: "60"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 3000
+    protocol: TCP
+    name: https
+  selector:
+    app: silhouette-frontend
+    version: "5.0.0"
+  sessionAffinity: None
+---
+# Service para métricas del frontend
+apiVersion: v1
+kind: Service
+metadata:
+  name: silhouette-frontend-metrics
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    component: metrics
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9091
+    targetPort: 9091
+    protocol: TCP
+    name: metrics
+  selector:
+    app: silhouette-frontend
+    version: "5.0.0"
+---
+# HPA para el frontend
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: silhouette-frontend-hpa
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: silhouette-frontend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "50"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+---
+# PodDisruptionBudget para el frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: silhouette-frontend-pdb
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: silhouette-frontend
+      version: "5.0.0"

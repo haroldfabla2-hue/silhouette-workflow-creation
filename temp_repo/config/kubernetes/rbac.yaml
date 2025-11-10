@@ -1,0 +1,398 @@
+# ServiceAccount para el backend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: silhouette-backend
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/silhouette-backend-role"
+---
+# ServiceAccount para el frontend
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: silhouette-frontend
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/silhouette-frontend-role"
+---
+# ServiceAccount para PostgreSQL
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres
+  namespace: silhouette-production
+  labels:
+    app: postgres
+---
+# ServiceAccount para Redis
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis
+  namespace: silhouette-production
+  labels:
+    app: redis
+---
+# ServiceAccount para RabbitMQ
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rabbitmq
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+---
+# ServiceAccount para Neo4j
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: neo4j
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+---
+# ClusterRole para monitoreo
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: silhouette-monitoring
+  labels:
+    app: silhouette
+    component: monitoring
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods", "secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources: ["ingresses", "ingresses/status"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "ingresses/status"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["nodes", "pods", "services"]
+  verbs: ["get", "list"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding para monitoreo
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: silhouette-monitoring
+  labels:
+    app: silhouette
+    component: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: silhouette-monitoring
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: silhouette-monitoring
+- kind: ServiceAccount
+  name: grafana
+  namespace: silhouette-monitoring
+---
+# Role para leer configuraciones del namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: silhouette-backend-reader
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: security
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+---
+# RoleBinding para el backend
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: silhouette-backend-reader
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: security
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: silhouette-backend-reader
+subjects:
+- kind: ServiceAccount
+  name: silhouette-backend
+  namespace: silhouette-production
+---
+# Role para operaciones de bases de datos
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: silhouette-db-operator
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: database
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch"]
+---
+# RoleBinding para operadores de DB
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: silhouette-db-operator
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: database
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: silhouette-db-operator
+subjects:
+- kind: ServiceAccount
+  name: postgres
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: redis
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: rabbitmq
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: neo4j
+  namespace: silhouette-production
+---
+# PodSecurityPolicy para el backend
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: silhouette-backend-psp
+  labels:
+    app: silhouette-backend
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: true
+---
+# PodSecurityPolicy para el frontend
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: silhouette-frontend-psp
+  labels:
+    app: silhouette-frontend
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: true
+---
+# PodSecurityPolicy para bases de datos
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: silhouette-database-psp
+  labels:
+    app: silhouette-database
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: false  # Las bases de datos necesitan escribir en sus directorios
+---
+# ClusterRole para PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: silhouette-psp
+  labels:
+    app: silhouette
+    component: security
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs: ['use']
+  resourceNames:
+    - 'silhouette-backend-psp'
+    - 'silhouette-frontend-psp'
+    - 'silhouette-database-psp'
+---
+# RoleBinding para PSP
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: silhouette-psp
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: security
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: silhouette-psp
+subjects:
+- kind: ServiceAccount
+  name: silhouette-backend
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: silhouette-frontend
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: postgres
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: redis
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: rabbitmq
+  namespace: silhouette-production
+- kind: ServiceAccount
+  name: neo4j
+  namespace: silhouette-production
+---
+# LimitRange para recursos
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: silhouette-limits
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: resource-management
+spec:
+  limits:
+  - type: Container
+    default:
+      memory: "1Gi"
+      cpu: "500m"
+    defaultRequest:
+      memory: "256Mi"
+      cpu: "100m"
+    max:
+      memory: "4Gi"
+      cpu: "2000m"
+    min:
+      memory: "64Mi"
+      cpu: "50m"
+  - type: Pod
+    max:
+      memory: "8Gi"
+      cpu: "4000m"
+    min:
+      memory: "128Mi"
+      cpu: "100m"
+  - type: PersistentVolumeClaim
+    max:
+      storage: "500Gi"
+    min:
+      storage: "1Gi"
+---
+# ResourceQuota para el namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: silhouette-quota
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: resource-management
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: "20Gi"
+    limits.cpu: "20"
+    limits.memory: "40Gi"
+    persistentvolumeclaims: "50"
+    requests.storage: "1Ti"
+    pods: "100"
+    services: "20"
+    secrets: "50"
+    configmaps: "50"

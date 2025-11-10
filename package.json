@@ -1,0 +1,69 @@
+{
+  "name": "silhouetteagency",
+  "version": "1.0.0",
+  "description": "Silhouette Agency Platform - IA-Powered Workflow Creation Platform with Intelligent Chat",
+  "author": "Silhouette Anonimo",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "automation",
+    "ai",
+    "chat",
+    "typescript",
+    "nextjs",
+    "react-native",
+    "enterprise",
+    "framework",
+    "nodejs",
+    "postgresql",
+    "redis",
+    "neo4j"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haroldfabla2-hue/silhouetteagency.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haroldfabla2-hue/silhouetteagency/issues"
+  },
+  "homepage": "https://github.com/haroldfabla2-hue/silhouetteagency#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend && npm run build:mobile",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build:mobile": "cd mobile && npm run build",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ../mobile && npm install",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm run start",
+    "start:frontend": "cd frontend && npm run start",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build --no-cache",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "lint": "npm run lint:backend && npm run lint:frontend && npm run lint:mobile",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint",
+    "setup": "./install.sh",
+    "setup:production": "./setup-production.sh",
+    "setup:framework": "./install-framework-v4.sh",
+    "integrate": "./integrate-silhouette-100.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "workspaces": [
+    "backend",
+    "frontend", 
+    "mobile"
+  ]
+}

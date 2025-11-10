@@ -1,0 +1,484 @@
+# Network Policy para el namespace de producción
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: silhouette-production-default-deny
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Network Policy para el backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: silhouette-backend-network-policy
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: backend
+spec:
+  podSelector:
+    matchLabels:
+      app: silhouette-backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Permitir tráfico del servicio de métricas
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  # Permitir tráfico interno del mismo namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+  egress:
+  # Permitir tráfico a PostgreSQL
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Permitir tráfico a Redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Permitir tráfico a RabbitMQ
+  - to:
+    - podSelector:
+        matchLabels:
+          app: rabbitmq
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Permitir tráfico a Neo4j
+  - to:
+    - podSelector:
+        matchLabels:
+          app: neo4j
+    ports:
+    - protocol: TCP
+      port: 7687
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Permitir tráfico saliente a internet para APIs externas
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+---
+# Network Policy para el frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: silhouette-frontend-network-policy
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    component: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: silhouette-frontend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del ingress
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 3000
+  # Permitir tráfico del servicio de métricas
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-monitoring
+    ports:
+    - protocol: TCP
+      port: 9091
+  egress:
+  # Permitir tráfico al backend
+  - to:
+    - podSelector:
+        matchLabels:
+          app: silhouette-backend
+    ports:
+    - protocol: TCP
+      port: 80
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Permitir tráfico saliente a internet para CDNs y servicios
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+---
+# Network Policy para PostgreSQL
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-network-policy
+  namespace: silhouette-production
+  labels:
+    app: postgres
+    component: database
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: silhouette-backend
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Permitir tráfico de replicación (para futuros lectores)
+  - from:
+    - podSelector:
+        matchLabels:
+          app: postgres
+  egress:
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: silhouette-production
+  labels:
+    app: redis
+    component: cache
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: silhouette-backend
+    ports:
+    - protocol: TCP
+      port: 6379
+  egress:
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para RabbitMQ
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq-network-policy
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+    component: messaging
+spec:
+  podSelector:
+    matchLabels:
+      app: rabbitmq
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: silhouette-backend
+    ports:
+    - protocol: TCP
+      port: 5672
+  # Permitir acceso a la interfaz de gestión (solo administrador)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 15672
+  egress:
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para Neo4j
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: neo4j-network-policy
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    component: graph-database
+spec:
+  podSelector:
+    matchLabels:
+      app: neo4j
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del backend
+  - from:
+    - podSelector:
+        matchLabels:
+          app: silhouette-backend
+    ports:
+    - protocol: TCP
+      port: 7687
+      port: 7474
+  egress:
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para el namespace de monitoreo
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: silhouette-monitoring-default-deny
+  namespace: silhouette-monitoring
+  labels:
+    app: silhouette-monitoring
+    component: security
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Network Policy para Prometheus
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-network-policy
+  namespace: silhouette-monitoring
+  labels:
+    app: prometheus
+    component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del servicio de métricas interno
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+    ports:
+    - protocol: TCP
+      port: 80
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-monitoring
+  egress:
+  # Permitir scraping de métricas de otros servicios
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-production
+    ports:
+    - protocol: TCP
+      port: 9090
+      port: 9091
+      port: 9121
+      port: 9187
+      port: 9419
+      port: 9100
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para Grafana
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: grafana-network-policy
+  namespace: silhouette-monitoring
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: grafana
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del ingress para acceso web
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-monitoring
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  # Permitir acceso a Prometheus
+  - to:
+    - podSelector:
+        matchLabels:
+          app: prometheus
+    ports:
+    - protocol: TCP
+      port: 80
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# Network Policy para AlertManager
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: alertmanager-network-policy
+  namespace: silhouette-monitoring
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: alertmanager
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Permitir tráfico del ingress para acceso web
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: silhouette-monitoring
+    - podSelector:
+        matchLabels:
+          app: nginx-ingress
+    ports:
+    - protocol: TCP
+      port: 80
+  egress:
+  # Permitir tráfico SMTP para alertas por email
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 587
+      port: 465
+  # Permitir tráfico a Slack API
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+  # Permitir tráfico a servicios DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53

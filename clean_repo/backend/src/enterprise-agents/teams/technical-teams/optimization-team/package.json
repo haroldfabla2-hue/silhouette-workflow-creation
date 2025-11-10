@@ -1,0 +1,57 @@
+{
+  "name": "optimization-team",
+  "version": "4.0.0",
+  "description": "Framework empresarial inteligente con 46+ equipos especializados, auto-optimización y workflows dinámicos",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node EnhancedSystemTest.js",
+    "demo": "node RealTimeAutoOptimizationDemo.js",
+    "demo:dynamic": "node team-workflows/DynamicSystemDemo.js",
+    "test:integration": "node team-workflows/IntegrationTests.js",
+    "test:phase3": "node team-workflows/phase3/Phase3Tests.js",
+    "test:all": "node test.js",
+    "dev": "node simple_test.js"
+  },
+  "dependencies": {
+    "events": "^3.3.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7",
+    "os": "^0.1.2",
+    "crypto": "^1.0.1",
+    "util": "^0.12.5",
+    "http": "^0.0.1-security",
+    "url": "^0.11.3",
+    "querystring": "^0.2.1",
+    "stream": "^0.0.2",
+    "buffer": "^6.0.3",
+    "net": "^1.0.2",
+    "tls": "^1.1.2"
+  },
+  "keywords": [
+    "framework",
+    "workflow",
+    "optimization",
+    "ai",
+    "dynamic",
+    "enterprise",
+    "business",
+    "process-improvement",
+    "automation",
+    "teams"
+  ],
+  "author": "MiniMax Agent",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haroldfabla2-hue/framework-silhouette-v4.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haroldfabla2-hue/framework-silhouette-v4/issues"
+  },
+  "homepage": "https://github.com/haroldfabla2-hue/framework-silhouette-v4#readme"
+}

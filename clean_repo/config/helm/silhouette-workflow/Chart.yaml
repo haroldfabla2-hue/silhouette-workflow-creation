@@ -1,0 +1,30 @@
+# Chart principal de Silhouette
+apiVersion: v2
+name: silhouette-workflow
+description: Silhouette Workflow Creation Platform - Enterprise-grade workflow automation with AI
+type: application
+version: 5.0.0
+appVersion: "5.0.0"
+keywords:
+  - workflow
+  - automation
+  - ai
+  - enterprise
+  - kubernetes
+home: https://silhouette.com
+sources:
+  - https://github.com/company/silhouette-workflow
+maintainers:
+  - name: Silhouette Team
+    email: devops@company.com
+icon: https://silhouette.com/logo.svg
+annotations:
+  category: Workflow
+  licenses: MIT
+  images: |
+    - silhouette/backend:5.0.0
+    - silhouette/frontend:5.0.0
+    - postgres:14.5-alpine
+    - redis:7.0-alpine
+    - rabbitmq:3.10-management-alpine
+    - neo4j:5.0-community

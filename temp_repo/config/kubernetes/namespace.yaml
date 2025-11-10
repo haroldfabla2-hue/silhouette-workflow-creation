@@ -1,0 +1,38 @@
+# Namespace para el entorno de producción
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: silhouette-production
+  labels:
+    name: silhouette-production
+    environment: production
+    platform: silhouette-workflow
+    managed-by: kube-system
+  annotations:
+    description: "Silhouette Workflow Creation Platform - Production Environment"
+    version: "5.0.0"
+    contact: "devops@company.com"
+---
+# Namespace para monitoreo
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: silhouette-monitoring
+  labels:
+    name: silhouette-monitoring
+    environment: production
+    platform: silhouette-monitoring
+  annotations:
+    description: "Silhouette Monitoring Stack - Prometheus, Grafana, AlertManager"
+---
+# Namespace para desarrollo/staging
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: silhouette-staging
+  labels:
+    name: silhouette-staging
+    environment: staging
+    platform: silhouette-workflow
+  annotations:
+    description: "Silhouette Workflow Creation Platform - Staging Environment"

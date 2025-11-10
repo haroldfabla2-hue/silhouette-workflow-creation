@@ -1,0 +1,257 @@
+# ConfigMap principal del backend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: silhouette-backend-config
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    version: "5.0.0"
+data:
+  # Configuración de base de datos
+  DATABASE_HOST: "postgres-primary"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "haasdb"
+  DATABASE_USER: "haas"
+  DATABASE_SSL: "true"
+  DATABASE_CONNECTION_POOL: "20"
+  DATABASE_TIMEOUT: "30000"
+  DATABASE_IDLE_TIMEOUT: "600000"
+  DATABASE_LOGGING: "false"
+  
+  # Configuración de Redis
+  REDIS_HOST: "redis-primary"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: "haaspass"
+  REDIS_DB: "0"
+  REDIS_MAX_RETRIES: "3"
+  REDIS_RETRY_DELAY: "1000"
+  REDIS_KEY_PREFIX: "silhouette:"
+  REDIS_TTL_DEFAULT: "3600"
+  
+  # Configuración de RabbitMQ
+  RABBITMQ_HOST: "rabbitmq-primary"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: "haas"
+  RABBITMQ_PASSWORD: "haaspass"
+  RABBITMQ_VHOST: "/"
+  RABBITMQ_PREFETCH_COUNT: "10"
+  RABBITMQ_RETRY_DELAY: "5000"
+  
+  # Configuración de Neo4j
+  NEO4J_HOST: "neo4j-primary"
+  NEO4J_PORT: "7687"
+  NEO4J_USER: "neo4j"
+  NEO4J_DATABASE: "haas"
+  NEO4J_BOLT_TIMEOUT: "30000"
+  NEO4J_MAX_CONNECTION_POOL_SIZE: "100"
+  
+  # Configuración de JWT
+  JWT_SECRET_KEY: "haas-super-secret-key-2025"
+  JWT_ACCESS_TOKEN_EXPIRY: "900"
+  JWT_REFRESH_TOKEN_EXPIRY: "604800"
+  JWT_ISSUER: "silhouette-platform"
+  JWT_AUDIENCE: "silhouette-users"
+  
+  # Configuración de seguridad
+  BCRYPT_ROUNDS: "12"
+  ENCRYPTION_KEY: "haas-encryption-key-2025"
+  CORS_ORIGINS: "https://app.silhouette.com,https://admin.silhouette.com"
+  RATE_LIMIT_WINDOW: "900000"
+  RATE_LIMIT_MAX: "100"
+  
+  # Configuración de archivos
+  UPLOAD_MAX_SIZE: "10485760"
+  UPLOAD_ALLOWED_TYPES: "json,yaml,xml,csv"
+  STORAGE_PROVIDER: "s3"
+  S3_BUCKET: "silhouette-workflows"
+  S3_REGION: "us-east-1"
+  
+  # Configuración de monitoreo
+  METRICS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  TRACING_ENABLED: "true"
+  TRACING_SAMPLER_TYPE: "const"
+  TRACING_SAMPLER_PARAM: "1"
+  
+  # Configuración de AI/ML
+  ML_MODEL_PATH: "/app/models"
+  ML_PREDICTION_TIMEOUT: "30000"
+  ML_BATCH_SIZE: "100"
+  ML_MAX_CONCURRENT_PREDICTIONS: "50"
+  
+  # Configuración de performance
+  PM2_INSTANCES: "max"
+  PM2_MAX_MEMORY: "1G"
+  PM2_LOG_DATE_FORMAT: "YYYY-MM-DD HH:mm:ss Z"
+  PM2_LOG_FILE: "/var/log/pm2/backend.log"
+  PM2_OUT_FILE: "/var/log/pm2/backend-out.log"
+  PM2_ERR_FILE: "/var/log/pm2/backend-err.log"
+  
+  # Configuración de emails
+  SMTP_HOST: "smtp.silhouette.com"
+  SMTP_PORT: "587"
+  SMTP_SECURE: "true"
+  SMTP_USER: "noreply@silhouette.com"
+  SMTP_FROM: "Silhouette Platform <noreply@silhouette.com>"
+  
+  # Configuración de notificaciones
+  NOTIFICATIONS_ENABLED: "true"
+  NOTIFICATION_CHANNELS: "email,slack,webhook"
+  SLACK_WEBHOOK_URL: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  SLACK_CHANNEL: "#silhouette-alerts"
+  
+  # Configuración de compliance
+  GDPR_RETENTION_DAYS: "2555"
+  AUDIT_LOG_RETENTION_DAYS: "2555"
+  COMPLIANCE_MODE: "strict"
+  DATA_ENCRYPTION_AT_REST: "true"
+  
+  # Configuración de observabilidad
+  OPEN_TELEMETRY_ENABLED: "true"
+  JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  LOG_STRUCTURED: "true"
+  
+---
+# ConfigMap del frontend
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: silhouette-frontend-config
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    version: "5.0.0"
+data:
+  # Configuración de API
+  NEXT_PUBLIC_API_URL: "https://api.silhouette.com"
+  NEXT_PUBLIC_WS_URL: "wss://api.silhouette.com/ws"
+  
+  # Configuración de autenticación
+  NEXT_PUBLIC_AUTH_DOMAIN: "auth.silhouette.com"
+  NEXT_PUBLIC_CLIENT_ID: "your-client-id"
+  NEXT_PUBLIC_REDIRECT_URI: "https://app.silhouette.com/auth/callback"
+  
+  # Configuración de features
+  NEXT_PUBLIC_ENABLE_ANALYTICS: "true"
+  NEXT_PUBLIC_ENABLE_COLLABORATION: "true"
+  NEXT_PUBLIC_ENABLE_AI: "true"
+  NEXT_PUBLIC_ENABLE_COMPLIANCE: "true"
+  
+  # Configuración de analytics
+  NEXT_PUBLIC_GA_TRACKING_ID: "GA-XXXXXXXXX"
+  NEXT_PUBLIC_SENTRY_DSN: "https://your-sentry-dsn@sentry.io/project-id"
+  
+  # Configuración de CDN
+  NEXT_PUBLIC_CDN_URL: "https://cdn.silhouette.com"
+  NEXT_PUBLIC_ASSETS_VERSION: "5.0.0"
+  
+  # Configuración de monitoreo
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: "production"
+  NEXT_PUBLIC_SENTRY_RELEASE: "5.0.0"
+  
+---
+# ConfigMap de monitoreo
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: silhouette-monitoring-config
+  namespace: silhouette-monitoring
+  labels:
+    app: monitoring
+    version: "5.0.0"
+data:
+  # Configuración de Prometheus
+  PROMETHEUS_CONFIG: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'silhouette-production'
+        environment: 'production'
+    
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+    
+    scrape_configs:
+      - job_name: 'silhouette-backend'
+        static_configs:
+          - targets: ['silhouette-backend:9090']
+        scrape_interval: 10s
+        metrics_path: /metrics
+        
+      - job_name: 'silhouette-frontend'
+        static_configs:
+          - targets: ['silhouette-frontend:9091']
+        scrape_interval: 15s
+        
+      - job_name: 'postgres-exporter'
+        static_configs:
+          - targets: ['postgres-exporter:9187']
+        scrape_interval: 30s
+        
+      - job_name: 'redis-exporter'
+        static_configs:
+          - targets: ['redis-exporter:9121']
+        scrape_interval: 30s
+        
+      - job_name: 'rabbitmq-exporter'
+        static_configs:
+          - targets: ['rabbitmq-exporter:9419']
+        scrape_interval: 30s
+        
+      - job_name: 'node-exporter'
+        static_configs:
+          - targets: ['node-exporter:9100']
+        scrape_interval: 15s
+        
+  # Configuración de AlertManager
+  ALERTMANAGER_CONFIG: |
+    global:
+      smtp_smarthost: 'smtp.silhouette.com:587'
+      smtp_from: 'alerts@silhouette.com'
+      smtp_auth_username: 'alerts@silhouette.com'
+      smtp_auth_password: 'your-email-password'
+      slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+    
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'default'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'critical-alerts'
+        - match:
+            severity: warning
+          receiver: 'warning-alerts'
+    
+    receivers:
+      - name: 'default'
+        email_configs:
+          - to: 'devops@silhouette.com'
+            subject: '[Silhouette] {{ .GroupLabels.alertname }}'
+            body: |
+              {{ range .Alerts }}
+              Alert: {{ .Annotations.summary }}
+              Description: {{ .Annotations.description }}
+              Labels: {{ range .Labels.SortedPairs }}{{ .Name }}: {{ .Value }}{{ end }}
+              {{ end }}
+        
+      - name: 'critical-alerts'
+        slack_configs:
+          - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+            channel: '#silhouette-critical'
+            title: 'CRITICAL: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+            
+      - name: 'warning-alerts'
+        slack_configs:
+          - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+            channel: '#silhouette-warnings'
+            title: 'WARNING: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'

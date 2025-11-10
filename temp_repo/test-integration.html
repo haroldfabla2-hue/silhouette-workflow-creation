@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silhouette - Prueba de Integración</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-ok { background: #4ade80; }
+        .status-error { background: #f87171; }
+        .status-warning { background: #fbbf24; }
+
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .chat-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+
+        .chat-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.silhouette {
+            background: white;
+            color: #333;
+            border: 1px solid #e2e8f0;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .chat-input button {
+            margin-left: 10px;
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .test-commands {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 20px;
+        }
+
+        .test-commands h3 {
+            margin-bottom: 20px;
+        }
+
+        .command-btn {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .command-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Silhouette</h1>
+            <p>Orquestador de Agentes - Prueba de Integración Completa</p>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>🔗 Estado del Backend</h3>
+                <div class="status-item">
+                    <span>Servidor:</span>
+                    <span><span class="status-indicator" id="backend-status"></span>Verificando...</span>
+                </div>
+                <div class="status-item">
+                    <span>Puerto:</span>
+                    <span>3001</span>
+                </div>
+                <div class="status-item">
+                    <span>Framework V4.0:</span>
+                    <span><span class="status-indicator" id="framework-status"></span>Verificando...</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>🤖 Estado de Silhouette</h3>
+                <div class="status-item">
+                    <span>Chat WebSocket:</span>
+                    <span><span class="status-indicator" id="websocket-status"></span>Conectando...</span>
+                </div>
+                <div class="status-item">
+                    <span>Comandos:</span>
+                    <span>Listos</span>
+                </div>
+                <div class="status-item">
+                    <span>Respuestas:</span>
+                    <span>Activas</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>📊 Métricas del Sistema</h3>
+                <div class="status-item">
+                    <span>Equipos Activos:</span>
+                    <span id="teams-count">45</span>
+                </div>
+                <div class="status-item">
+                    <span>Workflows:</span>
+                    <span id="workflows-count">127</span>
+                </div>
+                <div class="status-item">
+                    <span>Tareas:</span>
+                    <span id="tasks-count">1,543</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-commands">
+            <h3>🎮 Comandos de Prueba de Silhouette</h3>
+            <p>Prueba estos comandos en el chat flotante:</p>
+            <button class="command-btn" onclick="sendCommand('Mostrar métricas')">Mostrar métricas</button>
+            <button class="command-btn" onclick="sendCommand('Crear workflow para análisis de datos')">Crear workflow</button>
+            <button class="command-btn" onclick="sendCommand('Estado del sistema')">Estado del sistema</button>
+            <button class="command-btn" onclick="sendCommand('Optimizar performance')">Optimizar performance</button>
+            <button class="command-btn" onclick="sendCommand('Generar reporte')">Generar reporte</button>
+        </div>
+    </div>
+
+    <!-- Chat Flotante -->
+    <button class="chat-button" onclick="toggleChat()">
+        💬 Chat con Silhouette
+    </button>
+
+    <div class="chat-modal" id="chatModal">
+        <div class="chat-content">
+            <div class="chat-header">
+                <h3>🤖 Silhouette - Orquestador de Agentes</h3>
+                <button onclick="toggleChat()" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">×</button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message silhouette">
+                    ¡Hola! Soy Silhouette, tu orquestador de agentes. Estoy aquí para ayudarte con cualquier tarea dentro de la aplicación. ¿En qué puedo asistirte?
+                </div>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="Escribe tu mensaje para Silhouette..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración de conexión
+        const SOCKET_SERVER = 'http://localhost:3001';
+        let socket = null;
+        let isConnected = false;
+
+        // Verificar estado del backend
+        async function checkBackendStatus() {
+            try {
+                const response = await fetch('http://localhost:3001/api/health');
+                const data = await response.json();
+                
+                document.getElementById('backend-status').className = 'status-indicator status-ok';
+                document.getElementById('backend-status').parentElement.lastChild.textContent = 'Conectado';
+                
+                if (data.status === 'ok') {
+                    console.log('✅ Backend conectado correctamente');
+                }
+            } catch (error) {
+                document.getElementById('backend-status').className = 'status-indicator status-error';
+                document.getElementById('backend-status').parentElement.lastChild.textContent = 'Desconectado';
+                console.error('❌ Error conectando al backend:', error);
+            }
+        }
+
+        // Verificar Framework V4.0
+        async function checkFrameworkStatus() {
+            try {
+                const response = await fetch('http://localhost:3001/api/framework-v4/status');
+                const data = await response.json();
+                
+                document.getElementById('framework-status').className = 'status-indicator status-ok';
+                document.getElementById('framework-status').parentElement.lastChild.textContent = 'Activo';
+                
+                if (data.version === '4.0') {
+                    document.getElementById('teams-count').textContent = data.teams;
+                    document.getElementById('workflows-count').textContent = data.workflows;
+                    document.getElementById('tasks-count').textContent = data.tasks;
+                    console.log('✅ Framework V4.0 funcionando');
+                }
+            } catch (error) {
+                document.getElementById('framework-status').className = 'status-indicator status-error';
+                document.getElementById('framework-status').parentElement.lastChild.textContent = 'Inactivo';
+                console.error('❌ Error conectando al Framework V4.0:', error);
+            }
+        }
+
+        // Conectar WebSocket
+        function connectWebSocket() {
+            try {
+                socket = io(SOCKET_SERVER);
+                
+                socket.on('connect', () => {
+                    isConnected = true;
+                    document.getElementById('websocket-status').className = 'status-indicator status-ok';
+                    document.getElementById('websocket-status').parentElement.lastChild.textContent = 'Conectado';
+                    console.log('✅ WebSocket conectado');
+                });
+
+                socket.on('disconnect', () => {
+                    isConnected = false;
+                    document.getElementById('websocket-status').className = 'status-indicator status-warning';
+                    document.getElementById('websocket-status').parentElement.lastChild.textContent = 'Reconectando...';
+                    console.log('⚠️ WebSocket desconectado');
+                });
+
+                socket.on('silhouette-response', (data) => {
+                    addMessage('silhouette', data.message);
+                });
+
+            } catch (error) {
+                document.getElementById('websocket-status').className = 'status-indicator status-error';
+                document.getElementById('websocket-status').parentElement.lastChild.textContent = 'Error';
+                console.error('❌ Error conectando WebSocket:', error);
+            }
+        }
+
+        // Funciones del chat
+        function toggleChat() {
+            const modal = document.getElementById('chatModal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function addMessage(sender, message) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = message;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Mostrar mensaje del usuario
+            addMessage('user', message);
+            input.value = '';
+
+            // Enviar a Silhouette
+            if (isConnected && socket) {
+                socket.emit('chat-message', { message: message });
+            } else {
+                // Fallback: usar HTTP
+                try {
+                    const response = await fetch('http://localhost:3001/api/silhouette/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+                    const data = await response.json();
+                    addMessage('silhouette', data.response);
+                } catch (error) {
+                    addMessage('silhouette', 'Error conectando con Silhouette. Verifica que el backend esté ejecutándose.');
+                }
+            }
+        }
+
+        function sendCommand(command) {
+            document.getElementById('messageInput').value = command;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Inicializar al cargar la página
+        window.addEventListener('load', () => {
+            console.log('🚀 Iniciando verificación de Silhouette...');
+            
+            // Verificar backend
+            checkBackendStatus();
+            
+            // Verificar Framework V4.0
+            checkFrameworkStatus();
+            
+            // Conectar WebSocket
+            connectWebSocket();
+            
+            // Verificar cada 30 segundos
+            setInterval(() => {
+                checkBackendStatus();
+                checkFrameworkStatus();
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

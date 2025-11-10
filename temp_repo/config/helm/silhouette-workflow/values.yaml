@@ -1,0 +1,437 @@
+# Valores por defecto para Silhouette Workflow Platform
+# Estas son configuraciones de producción enterprise-grade
+
+# Configuración global
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "silhouette-standard"
+  
+  # Configuración de dominio y certificados
+  domain: "silhouette.com"
+  tls:
+    enabled: true
+    issuer: "letsencrypt-prod"
+    certManager: true
+  
+  # Configuración de logging y monitoreo
+  logging:
+    level: "info"
+    format: "json"
+    structured: true
+  
+  # Configuración de seguridad
+  security:
+    networkPolicies: true
+    podSecurityPolicies: true
+    rbac: true
+    serviceAccounts:
+      create: true
+      automount: false
+
+# Configuración de namespaces
+namespaces:
+  create: true
+  production:
+    name: "silhouette-production"
+    labels:
+      environment: "production"
+      platform: "silhouette-workflow"
+  monitoring:
+    name: "silhouette-monitoring"
+    labels:
+      environment: "production"
+      platform: "silhouette-monitoring"
+  staging:
+    name: "silhouette-staging"
+    labels:
+      environment: "staging"
+      platform: "silhouette-workflow"
+
+# Configuración del backend
+backend:
+  enabled: true
+  replicaCount: 3
+  
+  image:
+    registry: ""
+    repository: "silhouette/backend"
+    tag: "5.0.0"
+    pullPolicy: "IfNotPresent"
+  
+  # Configuración de recursos
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  
+  # Configuración de autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+    scaleDownStabilizationWindowSeconds: 300
+    scaleUpStabilizationWindowSeconds: 60
+  
+  # Configuración de seguridad
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+      - ALL
+  
+  # Configuración de red
+  service:
+    type: "LoadBalancer"
+    port: 80
+    targetPort: 3000
+    annotations: {}
+  
+  # Configuración de health checks
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /health
+      port: 3000
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /ready
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  # Configuración de volúmenes persistentes
+  persistence:
+    enabled: true
+    accessMode: "ReadWriteOnce"
+    size: "10Gi"
+    storageClass: "silhouette-standard"
+  
+  # Variables de entorno desde secrets
+  envSecrets:
+    - name: "silhouette-postgres-secret"
+    - name: "silhouette-redis-secret"
+    - name: "silhouette-rabbitmq-secret"
+    - name: "silhouette-neo4j-secret"
+    - name: "silhouette-jwt-secret"
+    - name: "silhouette-external-secrets"
+  
+  # Configuración de configuración desde ConfigMap
+  envConfigMap:
+    name: "silhouette-backend-config"
+  
+  # Configuración de logs
+  logs:
+    volume:
+      enabled: true
+      size: "10Gi"
+      storageClass: "silhouette-standard"
+  
+  # Configuración de modelos ML
+  models:
+    volume:
+      enabled: true
+      size: "50Gi"
+      storageClass: "silhouette-fast-ssd"
+  
+  # Configuración de uploads
+  uploads:
+    volume:
+      enabled: true
+      size: "100Gi"
+      storageClass: "silhouette-standard"
+
+# Configuración del frontend
+frontend:
+  enabled: true
+  replicaCount: 2
+  
+  image:
+    registry: ""
+    repository: "silhouette/frontend"
+    tag: "5.0.0"
+    pullPolicy: "IfNotPresent"
+  
+  # Configuración de recursos
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "200m"
+      memory: "512Mi"
+  
+  # Configuración de autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+    scaleDownStabilizationWindowSeconds: 300
+    scaleUpStabilizationWindowSeconds: 60
+  
+  # Configuración de seguridad
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    fsGroup: 1001
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+      - ALL
+  
+  # Configuración de red
+  service:
+    type: "LoadBalancer"
+    port: 80
+    targetPort: 3000
+    annotations: {}
+  
+  # Configuración de health checks
+  livenessProbe:
+    enabled: true
+    httpGet:
+      path: /_next/health
+      port: 3000
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+  
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /_next/ready
+      port: 3000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  # Configuración de volúmenes persistentes
+  persistence:
+    enabled: true
+    accessMode: "ReadWriteOnce"
+    size: "5Gi"
+    storageClass: "silhouette-standard"
+
+# Configuración de PostgreSQL
+postgresql:
+  enabled: true
+  auth:
+    existingSecret: "silhouette-postgres-secret"
+  primary:
+    persistence:
+      enabled: true
+      size: "50Gi"
+      storageClass: "silhouette-fast-ssd"
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "2000m"
+        memory: "4Gi"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 999
+      fsGroup: 999
+
+# Configuración de Redis
+redis:
+  enabled: true
+  auth:
+    existingSecret: "silhouette-redis-secret"
+  master:
+    persistence:
+      enabled: true
+      size: "20Gi"
+      storageClass: "silhouette-fast-ssd"
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 999
+      fsGroup: 999
+
+# Configuración de RabbitMQ
+rabbitmq:
+  enabled: true
+  auth:
+    existingSecret: "silhouette-rabbitmq-secret"
+  persistence:
+    enabled: true
+    size: "30Gi"
+    storageClass: "silhouette-fast-ssd"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+
+# Configuración de Neo4j
+neo4j:
+  enabled: true
+  auth:
+    existingSecret: "silhouette-neo4j-secret"
+  persistence:
+    enabled: true
+    size: "100Gi"
+    storageClass: "silhouette-fast-ssd"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+
+# Configuración de Ingress
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+  hosts:
+    - host: app.silhouette.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: api.silhouette.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: "silhouette-tls"
+
+# Configuración de network policies
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+  ingressRules: []
+  egressRules: []
+
+# Configuración de RBAC
+rbac:
+  create: true
+  serviceAccounts:
+    backend:
+      create: true
+    frontend:
+      create: true
+    postgresql:
+      create: true
+    redis:
+      create: true
+    rabbitmq:
+      create: true
+    neo4j:
+      create: true
+
+# Configuración de monitoreo (se desplegará por separado)
+monitoring:
+  enabled: false
+  prometheus:
+    enabled: false
+  grafana:
+    enabled: false
+  alertmanager:
+    enabled: false
+
+# Configuración de backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: "30d"
+  s3:
+    enabled: true
+    bucket: "silhouette-backups"
+    region: "us-east-1"
+
+# Configuración de disaster recovery
+disasterRecovery:
+  enabled: true
+  rpo: "1h"  # Recovery Point Objective
+  rto: "4h"  # Recovery Time Objective
+  standby:
+    enabled: false
+    region: "us-west-2"
+
+# Configuración de compliance y auditoría
+compliance:
+  enabled: true
+  gdpr: true
+  soc2: true
+  audit:
+    enabled: true
+    retention: "2555d"  # 7 años
+  encryption:
+    atRest: true
+    inTransit: true
+
+# Configuración de alta disponibilidad
+highAvailability:
+  enabled: true
+  minAvailable: 2
+  maxUnavailable: 1
+  podAntiAffinity: "soft"
+
+# Configuración de multi-tenant
+multiTenant:
+  enabled: true
+  namespacePerTenant: true
+  resourceQuotas: true
+
+# Configuración de testing
+testing:
+  enabled: true
+  smokeTests: true
+  performanceTests: true
+  securityTests: true
+
+# Configuración de CI/CD
+cicd:
+  autoDeploy: false
+  imagePullPolicy: "IfNotPresent"
+  deploymentStrategy: "RollingUpdate"
+  rolloutBackoffLimit: 3

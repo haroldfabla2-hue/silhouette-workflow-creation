@@ -1,0 +1,184 @@
+# ==================================================
+# SILHOUETTE WORKFLOW CREATION - Prometheus Alerting Rules
+# ==================================================
+# Author: Silhouette Anonimo
+# Version: 1.0.0
+
+groups:
+  - name: silhouette.rules
+    rules:
+      # Application Availability
+      - alert: SilhouetteApplicationDown
+        expr: up{job="silhouette-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: silhouette-backend
+        annotations:
+          summary: "Silhouette Backend is down"
+          description: "Silhouette Backend has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/silhouette-down"
+
+      - alert: SilhouetteFrontendDown
+        expr: up{job="silhouette-frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: silhouette-frontend
+        annotations:
+          summary: "Silhouette Frontend is down"
+          description: "Silhouette Frontend has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/silhouette-down"
+
+      # Database Health
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: postgresql
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/postgres-down"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/redis-down"
+
+      - alert: Neo4jDown
+        expr: up{job="neo4j"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: neo4j
+        annotations:
+          summary: "Neo4j is down"
+          description: "Neo4j has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/neo4j-down"
+
+      - alert: RabbitMQDown
+        expr: up{job="rabbitmq"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: rabbitmq
+        annotations:
+          summary: "RabbitMQ is down"
+          description: "RabbitMQ has been down for more than 1 minute."
+          runbook_url: "https://docs.your-domain.com/runbooks/rabbitmq-down"
+
+      # Performance and Resource Alerts
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: silhouette-backend
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 2 seconds for more than 5 minutes."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: silhouette-backend
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 5% for more than 5 minutes."
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: database_connections_active / database_connections_max > 0.9
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool almost exhausted"
+          description: "Database connection pool usage is above 90%."
+
+      # Resource Utilization
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90% for more than 5 minutes."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% for more than 5 minutes."
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{fstype!="tmpfs"} - node_filesystem_free_bytes{fstype!="tmpfs"}) / node_filesystem_size_bytes{fstype!="tmpfs"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is above 90% for more than 5 minutes."
+
+      # Silhouette-specific alerts
+      - alert: QAVerificationFailures
+        expr: rate(qa_verification_total{status="failed"}[5m]) / rate(qa_verification_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: silhouette-qa
+        annotations:
+          summary: "High QA verification failure rate"
+          description: "QA verification failure rate is above 10% for more than 2 minutes."
+
+      - alert: WorkflowExecutionFailures
+        expr: rate(workflow_executions_total{status="failed"}[5m]) / rate(workflow_executions_total[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          service: silhouette-workflow
+        annotations:
+          summary: "High workflow execution failure rate"
+          description: "Workflow execution failure rate is above 5% for more than 3 minutes."
+
+      - alert: LongRunningWorkflows
+        expr: workflow_executions_running_duration_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          service: silhouette-workflow
+        annotations:
+          summary: "Long-running workflow detected"
+          description: "A workflow has been running for more than 1 hour."
+
+      # Security Alerts
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[1m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate detected"
+          description: "Request rate is above 100 requests per second for more than 2 minutes."
+
+      - alert: SuspiciousActivity
+        expr: increase(http_requests_total{status="401"}[5m]) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of authentication failures"
+          description: "More than 50 authentication failures in the last 5 minutes."

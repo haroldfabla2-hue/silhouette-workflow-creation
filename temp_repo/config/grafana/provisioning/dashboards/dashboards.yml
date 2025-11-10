@@ -1,0 +1,18 @@
+# ==================================================
+# SILHOUETTE WORKFLOW CREATION - Grafana Dashboards Configuration
+# ==================================================
+# Author: Silhouette Anonimo
+# Version: 1.0.0
+
+apiVersion: 1
+
+providers:
+  - name: 'Silhouette Dashboards'
+    orgId: 1
+    folder: 'Silhouette'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
