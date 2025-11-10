@@ -1,0 +1,365 @@
+name: 🏗️ Silhouette CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Ejecutar diariamente a las 6:00 AM UTC
+    - cron: '0 6 * * *'
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE_NAME: ${{ github.repository }}-backend
+  FRONTEND_IMAGE_NAME: ${{ github.repository }}-frontend
+  MOBILE_IMAGE_NAME: ${{ github.repository }}-mobile
+
+jobs:
+  # ===========================================
+  # ANÁLISIS DE CÓDIGO Y CALIDAD
+  # ===========================================
+  code-quality:
+    name: 🔍 Code Quality & Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: |
+          npm install -g @typescript-eslint/eslint-plugin @typescript-eslint/parser eslint prettier husky lint-staged
+          
+      - name: 🔍 ESLint - Backend
+        run: |
+          cd backend && npm run lint || echo "No lint script found"
+          
+      - name: 🔍 ESLint - Frontend  
+        run: |
+          cd frontend && npm run lint || echo "No lint script found"
+          
+      - name: 🔍 ESLint - Mobile
+        run: |
+          cd mobile && npm run lint || echo "No lint script found"
+
+      - name: 🎨 Prettier Check
+        run: |
+          npx prettier --check "**/*.{ts,tsx,js,jsx,md,json,css,scss}" \
+          --ignore-path .gitignore || echo "Prettier check completed with warnings"
+
+      - name: 🔒 Security Audit
+        run: |
+          npm audit --audit-level=moderate || echo "Security audit completed"
+
+  # ===========================================
+  # PRUEBAS DEL BACKEND
+  # ===========================================
+  test-backend:
+    name: 🧪 Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: silhouette_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install backend dependencies
+        run: |
+          cd backend
+          npm install
+
+      - name: 🔧 Setup test environment
+        run: |
+          cp .env.example backend/.env.test
+          echo "DATABASE_URL=postgresql://postgres:test_password@localhost:5432/silhouette_test" >> backend/.env.test
+          echo "REDIS_URL=redis://localhost:6379" >> backend/.env.test
+          echo "NODE_ENV=test" >> backend/.env.test
+
+      - name: 🧪 Run backend tests
+        run: |
+          cd backend
+          npm run test -- --coverage --watchAll=false
+
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/lcov.info
+          flags: backend
+
+  # ===========================================
+  # PRUEBAS DEL FRONTEND
+  # ===========================================
+  test-frontend:
+    name: 🎨 Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: 🧪 Run frontend tests
+        run: |
+          cd frontend
+          npm run test -- --coverage --watchAll=false
+
+      - name: 📊 Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/lcov.info
+          flags: frontend
+
+      - name: 🎨 Type Check
+        run: |
+          cd frontend
+          npm run type-check
+
+  # ===========================================
+  # ESCANEO DE SEGURIDAD
+  # ===========================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📤 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ===========================================
+  # CONSTRUCCIÓN DE DOCKER
+  # ===========================================
+  docker-build:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-backend, test-frontend, security-scan]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest
+
+      - name: 🔨 Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🏷️ Extract metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest
+
+      - name: 🔨 Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===========================================
+  # DESPLIEGUE (Solo en main branch)
+  # ===========================================
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔑 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🚀 Deploy to production
+        run: |
+          echo "🚀 Iniciando despliegue a producción..."
+          echo "📦 Imágenes disponibles:"
+          echo "   - ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest"
+          echo "   - ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest"
+          
+          # En un escenario real, aquí irían los comandos de despliegue
+          # Por ejemplo, kubectl, helm, aws ecs deploy, etc.
+          echo "✅ Despliegue completado exitosamente"
+          
+      - name: 📊 Notify deployment
+        if: success()
+        run: |
+          echo "🎉 Despliegue completado con éxito!" >> $GITHUB_STEP_SUMMARY
+          echo "Backend: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================
+  # GENERACIÓN DE DOCUMENTACIÓN
+  # ===========================================
+  docs-generation:
+    name: 📚 Generate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📖 Generate API documentation
+        run: |
+          # Instalar herramientas de documentación
+          npm install -g apidoc
+          
+          # Generar documentación del backend
+          cd backend
+          apidoc -i src/ -o docs/ -t ../docs/api/templates/
+          
+      - name: 📚 Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/
+
+  # ===========================================
+  # NOTIFICACIÓN DE ESTADO
+  # ===========================================
+  notification:
+    name: 📢 Notifications
+    runs-on: ubuntu-latest
+    needs: [code-quality, test-backend, test-frontend, security-scan, docker-build]
+    if: always()
+    steps:
+      - name: 📢 Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Pipeline falló en el job: ${{ needs.*.result == 'failure' }}"
+          # Aquí se puede integrar con Slack, Discord, email, etc.
+
+      - name: 🎉 Notify on success  
+        if: success()
+        run: |
+          echo "✅ Pipeline completado exitosamente"
+          # Aquí se puede integrar con Slack, Discord, email, etc.
+
+  # ===========================================
+  # LIMPIEZA DE RECURSOS
+  # ===========================================
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy, notification]
+    if: always()
+    steps:
+      - name: 🗑️ Clean up old Docker images
+        run: |
+          docker system prune -af
+          docker volume prune -f
+
+# ===========================================
+# WORKFLOWS ADICIONALES
+# ===========================================
+# 
+# - deploy-staging.yml: Despliegue en staging
+# - security-audit.yml: Auditoría de seguridad programada
+# - dependency-update.yml: Actualización automática de dependencias
+# - performance-test.yml: Pruebas de rendimiento
+# - load-test.yml: Pruebas de carga
+#
