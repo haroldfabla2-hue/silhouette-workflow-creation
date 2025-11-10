@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permisos de red -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    
+    <!-- Permisos de almacenamiento -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+    
+    <!-- Permisos de notificaciones -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE" />
+    
+    <!-- Permisos de dispositivo -->
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Permisos de cámara y archivos (para funcionalidades de QR) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
+    <!-- Permisos de ubicación (opcional) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Para ejecutar en segundo plano -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- Configuraciones de hardware -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.front"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.rear"
+        android:required="false" />
+
+    <application
+      android:name=".MainApplication"
+      android:label="@string/app_name"
+      android:icon="@mipmap/ic_launcher"
+      android:roundIcon="@mipmap/ic_launcher_round"
+      android:allowBackup="false"
+      android:theme="@style/AppTheme"
+      android:usesCleartextTraffic="true"
+      android:requestLegacyExternalStorage="true"
+      android:largeHeap="true"
+      android:hardwareAccelerated="true"
+      android:networkSecurityConfig="@xml/network_security_config"
+      tools:targetApi="31">
+
+      <!-- Activity principal -->
+      <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:launchMode="singleTop"
+        android:theme="@style/LaunchTheme"
+        android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+        android:windowSoftInputMode="adjustResize"
+        android:screenOrientation="portrait">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        
+        <!-- Deep linking para workflows -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="silhouette" android:host="workflow" />
+        </intent-filter>
+        
+        <!-- Deep linking para notificaciones -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="silhouette" android:host="notification" />
+        </intent-filter>
+      </activity>
+
+      <!-- Actividades para autenticación -->
+      <activity
+        android:name=".auth.LoginActivity"
+        android:exported="false"
+        android:theme="@style/AppTheme"
+        android:parentActivityName=".MainActivity" />
+      
+      <activity
+        android:name=".auth.RegisterActivity"
+        android:exported="false"
+        android:theme="@style/AppTheme"
+        android:parentActivityName=".auth.LoginActivity" />
+
+      <!-- Servicios de ejecución de workflows en background -->
+      <service
+        android:name=".services.WorkflowExecutionService"
+        android:enabled="true"
+        android:exported="false" />
+      
+      <service
+        android:name=".services.SyncService"
+        android:enabled="true"
+        android:exported="false" />
+
+      <!-- Receiver para notificaciones push -->
+      <receiver android:name=".notifications.PushNotificationReceiver"
+          android:exported="true">
+          <intent-filter>
+              <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+          </intent-filter>
+      </receiver>
+
+      <!-- Receiver para boot completed -->
+      <receiver
+        android:name=".receivers.BootReceiver"
+        android:enabled="true"
+        android:exported="true">
+        <intent-filter android:priority="1000">
+            <action android:name="android.intent.action.BOOT_COMPLETED" />
+            <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            <action android:name="android.intent.action.PACKAGE_REPLACED" />
+            <data android:scheme="package" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Provider para compartir archivos -->
+      <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.fileprovider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths" />
+      </provider>
+
+      <!-- Configuración de seguridad de red -->
+      <meta-data
+        android:name="android.security.network-security-config"
+        android:resource="@xml/network_security_config" />
+        
+      <!-- Configuración de notificaciones -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_icon"
+        android:resource="@drawable/ic_notification" />
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_color"
+        android:resource="@color/notification_accent" />
+      
+      <!-- Configuración de deep linking -->
+      <meta-data
+        android:name="flutter_deeplinking_enabled"
+        android:value="true" />
+      
+      <!-- Configuración de performance -->
+      <meta-data
+        android:name="enableDexMerger"
+        android:value="true" />
+        
+      <!-- Configuración de Hermes (si se usa) -->
+      <meta-data
+        android:name="hermesEnabled"
+        android:value="true" />
+        
+    </application>
+</manifest>

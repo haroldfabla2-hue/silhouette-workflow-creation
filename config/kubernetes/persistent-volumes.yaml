@@ -1,0 +1,268 @@
+# PVC para PostgreSQL
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-pvc
+  namespace: silhouette-production
+  labels:
+    app: postgres
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: gp2  # AWS EBS gp2 storage class
+---
+# PVC para logs de PostgreSQL
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-logs-pvc
+  namespace: silhouette-production
+  labels:
+    app: postgres
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp2
+---
+# PVC para Redis
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: silhouette-production
+  labels:
+    app: redis
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp2
+---
+# PVC para RabbitMQ
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Gi
+  storageClassName: gp2
+---
+# PVC para logs de RabbitMQ
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-logs-pvc
+  namespace: silhouette-production
+  labels:
+    app: rabbitmq
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp2
+---
+# PVC para Neo4j
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-pvc
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp2
+---
+# PVC para logs de Neo4j
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-logs-pvc
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp2
+---
+# PVC para plugins de Neo4j
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: neo4j-plugins-pvc
+  namespace: silhouette-production
+  labels:
+    app: neo4j
+    tier: primary
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: gp2
+---
+# PVC para logs del backend
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silhouette-logs-pvc
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp2
+---
+# PVC para modelos ML/AI
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silhouette-models-pvc
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: models
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: gp2
+---
+# PVC para uploads de archivos
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silhouette-uploads-pvc
+  namespace: silhouette-production
+  labels:
+    app: silhouette-backend
+    component: uploads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp2
+---
+# PVC para datos del frontend
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silhouette-frontend-pvc
+  namespace: silhouette-production
+  labels:
+    app: silhouette-frontend
+    component: static
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: gp2
+---
+# StorageClass para diferentes tipos de almacenamiento
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: silhouette-fast-ssd
+  labels:
+    app: silhouette
+    tier: fast
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+provisioner: kubernetes.io/aws-ebs
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: silhouette-standard
+  labels:
+    app: silhouette
+    tier: standard
+parameters:
+  type: gp2
+  encrypted: "true"
+provisioner: kubernetes.io/aws-ebs
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: silhouette-archive
+  labels:
+    app: silhouette
+    tier: archive
+parameters:
+  type: st1
+  encrypted: "true"
+provisioner: kubernetes.io/aws-ebs
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+---
+# Backup PVC para disaster recovery
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silhouette-backup-pvc
+  namespace: silhouette-production
+  labels:
+    app: silhouette
+    component: backup
+spec:
+  accessModes:
+    - ReadWriteMany  # Permitir acceso desde múltiples pods para backup
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: silhouette-archive

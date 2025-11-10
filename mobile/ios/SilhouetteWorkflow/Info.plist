@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Silhouette Workflow</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+
+	<!-- Configuración de transporte seguro -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- Configuración de URLs de esquema -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.silhouette.workflow</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>silhouette</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Configuración de deep linking -->
+	<key>FacebookAppID</key>
+	<string></string>
+	<key>FacebookDisplayName</key>
+	<string>Silhouette Workflow</string>
+	<key>FacebookSchemaVersion</key>
+	<string>v1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>FacebookLogin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb1234567890</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Permisos de cámara -->
+	<key>NSCameraUsageDescription</key>
+	<string>Esta aplicación necesita acceso a la cámara para escanear códigos QR y tomar fotos de perfil.</string>
+
+	<!-- Permisos de micrófono -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Esta aplicación necesita acceso al micrófono para grabación de audio (opcional).</string>
+
+	<!-- Permisos de photos/librería -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Esta aplicación necesita acceso a tu librería de fotos para seleccionar imágenes de perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Esta aplicación necesita guardar imágenes en tu librería de fotos.</string>
+
+	<!-- Permisos de notificaciones -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Esta aplicación enviará notificaciones sobre el estado de tus workflows y actualizaciones importantes.</string>
+
+	<!-- Permisos de ubicación (opcional) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Esta aplicación puede usar tu ubicación para automatizaciones basadas en geolocalización (opcional).</string>
+
+	<!-- Configuración de background app refresh -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-fetch</string>
+		<string>background-processing</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- Configuración de interface -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- Configuración de scene (iOS 13+) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+
+	<!-- Configuración de entitlements -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:api.silhouette-workflow.com</string>
+		<string>applinks:app.silhouette-workflow.com</string>
+	</array>
+
+	<!-- Configuración de HealthKit (opcional) -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Esta aplicación puede leer datos de salud para automatizaciones (opcional).</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Esta aplicación puede escribir datos de salud para automatizaciones (opcional).</string>
+
+	<!-- Configuración de Siri (opcional) -->
+	<key>NSSiriUsageDescription</key>
+	<string>Esta aplicación puede usar Siri para ejecutar comandos por voz (opcional).</string>
+
+	<!-- Configuración de Apple Pay (opcional) -->
+	<key>com.apple.developer.in-app-purchase</key>
+	<true/>
+
+	<!-- Configuración de configuración de build -->
+	<key>IPHONEOS_DEPLOYMENT_TARGET</key>
+	<string>13.0</string>
+	<key>LD_RUNPATH_SEARCH_PATHS</key>
+	<array>
+		<string>$(inherited)</string>
+		<string>@executable_path/Frameworks</string>
+	</array>
+
+	<!-- Configuración de metadatos de la App Store -->
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+
+	<!-- Configuración de deeplinks específicos -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>WorkflowDeepLink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>silhouette-workflow</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>NotificationDeepLink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>silhouette-notification</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Configuración de recuperación de contraseña -->
+	<key>ASAccountAuthenticationModificationUsageDescription</key>
+	<string>Esta aplicación puede modificar ajustes de cuenta para mejorar la seguridad.</string>
+
+	<!-- Configuración de configuración automática -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Esta aplicación puede usar datos de seguimiento para mejorar la experiencia del usuario.</string>
+</dict>
+</plist>
